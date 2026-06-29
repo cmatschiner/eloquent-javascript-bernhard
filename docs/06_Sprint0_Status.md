@@ -31,12 +31,15 @@
 - **CI (GitHub Actions):** Maßgebliche Verifikation – installiert Android SDK, führt
   `testDebugUnitTest` und `assembleDebug` aus. **Definition of Done = CI grün.**
 
-## Definition of Done (Sprint 0)
-- [ ] CI-Pipeline grün (Build + Unit-Tests)
+## Definition of Done (Sprint 0) — ✅ ERFÜLLT
+- [x] CI-Pipeline grün (Build + Unit-Tests) — Run #2, Commit `968efc7`, `assembleDebug` + `testDebugUnitTest` erfolgreich
 - [x] Navigations-Grundgerüst mit 4 Screens
 - [x] DI (Hilt) eingebunden
 - [x] Getestete Kernlogik (Nomenklatur)
 - [x] Architektur-Entscheidungen dokumentiert (`05_Entscheidungen.md`)
+
+> **Testergebnis:** GitHub Actions „Android CI" Run #2 = **success**. Debug-APK wird als
+> Artefakt (`meetminutes-debug-apk`) hochgeladen. Sprint 0 ist abnahmebereit.
 
 ## Offene Spikes (in Folge-Sprints zu vertiefen)
 - Whisper.cpp-Anbindung via JNI (Sprint 2)
