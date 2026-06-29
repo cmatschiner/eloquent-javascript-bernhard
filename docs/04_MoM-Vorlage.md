@@ -102,9 +102,11 @@
 - Dezente Kopf-/Fußzeile mit Thema + Seitenzahl.
 - Einheitliche Schrift (z. B. Calibri/Arial 11), genügend Weißraum.
 
-## Offene Punkte zur Vorlage (bitte entscheiden)
-1. **Tonalität:** Ergebnisprotokoll (knapp, ergebnisorientiert) ✔ empfohlen – oder Verlaufsprotokoll (ausführlich)?
-2. **Sprechernamen:** automatisch „Sprecher 1/2" + manuelle Benennung – ok?
-3. **Pflichtfelder:** Sind Uhrzeit/Ort optional (falls beim Aufnehmen nicht erfasst)?
-4. **Logo/Branding** im Kopf erwünscht?
-5. **Sprache des Protokolls:** immer Deutsch, oder Sprache der Aufnahme?
+## Festgelegte Vorlagen-Entscheidungen (Stand 2026-06-29)
+1. **Tonalität:** **Ergebnisprotokoll** (knapp, ergebnisorientiert) ✔
+2. **Sprechernamen:** automatisch „Sprecher 1/2" + manuelle Benennung ✔
+3. **Pflichtfelder:** Datum/Art/Thema Pflicht; **Uhrzeit/Ort optional** (leer/„—") ✔
+4. **Logo/Branding:** vorerst kein Logo (spätere Option) ✔
+5. **Sprache:** **Deutsch** als Default (spätere Option „Sprache der Aufnahme") ✔
+
+> Diese Defaults stammen aus dem ADR-Log (`05_Entscheidungen.md`). Anpassungswünsche jederzeit möglich.
