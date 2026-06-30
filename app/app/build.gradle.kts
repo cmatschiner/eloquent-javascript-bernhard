@@ -20,6 +20,9 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Nur arm64 (moderne Geräte, Android 12+) → schlanke, schnelle Builds.
+        ndk { abiFilters += "arm64-v8a" }
     }
 
     buildTypes {
@@ -40,6 +43,15 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+
+    // Native On-Device-Whisper (whisper.cpp via JNI) – siehe src/main/cpp.
+    ndkVersion = "26.3.11579264"
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 }
 
