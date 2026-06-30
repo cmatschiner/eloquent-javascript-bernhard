@@ -40,6 +40,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import at.matschiner.meetminutes.recording.RecordingStatus
 import at.matschiner.meetminutes.ui.screens.record.RecordViewModel
+import at.matschiner.meetminutes.ui.screens.record.TranscriptionUiState
 
 @Composable
 fun RecordScreen(viewModel: RecordViewModel = hiltViewModel()) {
@@ -180,12 +181,53 @@ fun RecordScreen(viewModel: RecordViewModel = hiltViewModel()) {
 
         state.lastSavedFileName?.let { saved ->
             if (isIdle) {
-                Text(
-                    "Zuletzt gespeichert:\n$saved",
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("Zuletzt gespeichert", style = MaterialTheme.typography.titleSmall)
+                        Text(saved, style = MaterialTheme.typography.bodySmall)
+
+                        when (val t = viewModel.transcription) {
+                            is TranscriptionUiState.Idle -> {
+                                Button(
+                                    onClick = viewModel::transcribeLastRecording,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) { Text("Transkribieren") }
+                            }
+                            is TranscriptionUiState.Running -> {
+                                Text(
+                                    "Transkribiere … ${(t.progress * 100).toInt()} %",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                LinearProgressIndicator(
+                                    progress = { t.progress },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                            is TranscriptionUiState.Done -> {
+                                Text(
+                                    "Transkript gespeichert:\n${t.transcriptFileName}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            is TranscriptionUiState.Error -> {
+                                Text(
+                                    t.message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                                OutlinedButton(
+                                    onClick = viewModel::transcribeLastRecording,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) { Text("Erneut versuchen") }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

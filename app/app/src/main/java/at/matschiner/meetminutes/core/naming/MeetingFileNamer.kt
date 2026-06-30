@@ -41,6 +41,18 @@ object MeetingFileNamer {
         return "$desired ($counter)"
     }
 
+    /**
+     * Ersetzt die Dateiendung eines Dateinamens (z. B. ".wav" → ".md"),
+     * ohne den Basisnamen zu verändern. So teilen sich alle drei Artefakte
+     * einer Besprechung denselben Basisnamen.
+     */
+    fun withExtension(fileName: String, extension: String): String {
+        val ext = extension.trimStart('.').trim()
+        val dot = fileName.lastIndexOf('.')
+        val base = if (dot > 0) fileName.substring(0, dot) else fileName
+        return "$base.$ext"
+    }
+
     private fun sanitize(value: String): String =
         value.replace(ILLEGAL_CHARS, "-")
             .replace(MULTI_WHITESPACE, " ")

@@ -32,4 +32,15 @@ class MeetingStorage @Inject constructor(
         val unique = MeetingFileNamer.uniqueBaseName(base, existingBaseNames)
         return File(recordingsDir, "$unique.wav")
     }
+
+    /** Datei im Aufnahmeordner anhand des Dateinamens. */
+    fun fileByName(fileName: String): File = File(recordingsDir, fileName)
+
+    /** Transkript-Datei (.md) mit identischem Basisnamen wie die WAV-Datei. */
+    fun transcriptFileFor(wavFile: File): File =
+        File(recordingsDir, MeetingFileNamer.withExtension(wavFile.name, "md"))
+
+    /** Schreibt das Markdown-Transkript und gibt die Datei zurück. */
+    fun writeTranscript(wavFile: File, markdown: String): File =
+        transcriptFileFor(wavFile).apply { writeText(markdown) }
 }
