@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-and-test:
@@ -57,3 +57,19 @@ jobs:
           name: meetminutes-debug-apk
           path: app/app/build/outputs/apk/debug/*.apk
           if-no-files-found: warn
+
+      - name: Rename APK for release
+        if: github.event_name == 'push'
+        run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/MeetMinutes-debug.apk
+
+      - name: Publish APK as GitHub Release (direct download)
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: debug-latest
+          name: MeetMinutes Debug (neueste)
+          body: |
+            Automatisch gebaute Debug-APK zum Testen am Smartphone (arm64-v8a, Android 12–16).
+            Commit: ${{ github.sha }}
+          prerelease: true
+          files: app/app/build/outputs/apk/debug/MeetMinutes-debug.apk
