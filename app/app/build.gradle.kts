@@ -23,6 +23,18 @@ android {
 
         // Nur arm64 (moderne Geräte, Android 12+) → schlanke, schnelle Builds.
         ndk { abiFilters += "arm64-v8a" }
+
+        // Native Bibliothek (whisper.cpp/ggml) IMMER optimiert bauen – auch in der
+        // Debug-APK. Ohne das läuft die Inferenz mit -O0 um ein Vielfaches langsamer.
+        externalNativeBuild {
+            cmake {
+                arguments += listOf(
+                    "-DCMAKE_BUILD_TYPE=Release",
+                    "-DGGML_NATIVE=OFF",
+                )
+                cppFlags += listOf("-O3", "-ffast-math")
+            }
+        }
     }
 
     buildTypes {
