@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import at.matschiner.meetminutes.recording.RecordingStatus
+import at.matschiner.meetminutes.ui.screens.record.ProtocolUiState
 import at.matschiner.meetminutes.ui.screens.record.RecordViewModel
 import at.matschiner.meetminutes.ui.screens.record.TranscriptionUiState
 
@@ -219,6 +220,7 @@ fun RecordScreen(viewModel: RecordViewModel = hiltViewModel()) {
                                     "Transkript gespeichert:\n${t.transcriptFileName}",
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
+                                ProtocolSection(viewModel)
                             }
                             is TranscriptionUiState.Error -> {
                                 Text(
@@ -244,4 +246,41 @@ private fun formatDuration(ms: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "%02d:%02d".format(minutes, seconds)
+}
+
+@Composable
+private fun ProtocolSection(viewModel: RecordViewModel) {
+    Spacer(Modifier.height(4.dp))
+    when (val p = viewModel.protocol) {
+        is ProtocolUiState.Idle -> {
+            Button(
+                onClick = viewModel::createProtocolForLast,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Protokoll erstellen (DOCX)") }
+        }
+        is ProtocolUiState.Running -> {
+            Text(
+                "Analysiere Transkript und erstelle Protokoll …",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+        is ProtocolUiState.Done -> {
+            Text(
+                "Protokoll gespeichert:\n${p.protocolFileName}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        is ProtocolUiState.Error -> {
+            Text(
+                p.message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            OutlinedButton(
+                onClick = viewModel::createProtocolForLast,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Erneut versuchen") }
+        }
+    }
 }

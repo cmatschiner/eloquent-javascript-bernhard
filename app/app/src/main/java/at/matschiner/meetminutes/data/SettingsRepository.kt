@@ -31,9 +31,25 @@ class SettingsRepository @Inject constructor(
         get() = prefs.getString(KEY_LANGUAGE, "de") ?: "de"
         set(value) = prefs.edit().putString(KEY_LANGUAGE, value).apply()
 
+    /**
+     * Anthropic-API-Key für die Inhaltsanalyse (ADR-02).
+     * Hinweis: In Sprint 7 wird die Ablage auf verschlüsselten Speicher (Keystore) gehärtet.
+     */
+    var anthropicApiKey: String
+        get() = prefs.getString(KEY_API_KEY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_API_KEY, value).apply()
+
+    /** Claude-Modell für die Analyse. */
+    var analysisModel: String
+        get() = prefs.getString(KEY_ANALYSIS_MODEL, DEFAULT_ANALYSIS_MODEL) ?: DEFAULT_ANALYSIS_MODEL
+        set(value) = prefs.edit().putString(KEY_ANALYSIS_MODEL, value).apply()
+
     private companion object {
         const val KEY_MODE = "transcription_mode"
         const val KEY_MODEL = "whisper_model"
         const val KEY_LANGUAGE = "language"
+        const val KEY_API_KEY = "anthropic_api_key"
+        const val KEY_ANALYSIS_MODEL = "analysis_model"
+        const val DEFAULT_ANALYSIS_MODEL = "claude-sonnet-5"
     }
 }

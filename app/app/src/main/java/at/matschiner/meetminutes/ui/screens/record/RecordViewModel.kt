@@ -6,11 +6,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import at.matschiner.meetminutes.analysis.AnalysisContext
+import at.matschiner.meetminutes.analysis.AnalysisEngine
 import at.matschiner.meetminutes.data.SettingsRepository
+import at.matschiner.meetminutes.docx.MeetingMinutesComposer
+import at.matschiner.meetminutes.docx.ProtocolMeta
 import at.matschiner.meetminutes.recording.MeetingStorage
 import at.matschiner.meetminutes.recording.RecordingService
 import at.matschiner.meetminutes.recording.RecordingState
 import at.matschiner.meetminutes.recording.RecordingStateHolder
+import at.matschiner.meetminutes.transcription.Transcript
 import at.matschiner.meetminutes.transcription.TranscriptMarkdownFormatter
 import at.matschiner.meetminutes.transcription.TranscriptMeta
 import at.matschiner.meetminutes.transcription.TranscriptionEngine
@@ -32,12 +37,21 @@ sealed interface TranscriptionUiState {
     data class Error(val message: String) : TranscriptionUiState
 }
 
+/** UI-Zustand der Protokoll-Erstellung. */
+sealed interface ProtocolUiState {
+    data object Idle : ProtocolUiState
+    data object Running : ProtocolUiState
+    data class Done(val protocolFileName: String) : ProtocolUiState
+    data class Error(val message: String) : ProtocolUiState
+}
+
 @HiltViewModel
 class RecordViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     stateHolder: RecordingStateHolder,
     private val storage: MeetingStorage,
     private val engine: TranscriptionEngine,
+    private val analysisEngine: AnalysisEngine,
     private val settings: SettingsRepository,
 ) : ViewModel() {
 
@@ -52,12 +66,15 @@ class RecordViewModel @Inject constructor(
 
     var transcription by mutableStateOf<TranscriptionUiState>(TranscriptionUiState.Idle)
         private set
+    var protocol by mutableStateOf<ProtocolUiState>(ProtocolUiState.Idle)
+        private set
+
+    private var lastTranscript: Transcript? = null
 
     fun onDateChange(value: String) { dateText = value }
     fun onArtChange(value: String) { art = value }
     fun onThemaChange(value: String) { thema = value }
 
-    /** Pflichtfelder gemäß Pflichtenheft: Datum (gültig), Art, Thema. */
     val isMetadataValid: Boolean
         get() = parseDate() != null && art.isNotBlank() && thema.isNotBlank()
 
@@ -67,6 +84,8 @@ class RecordViewModel @Inject constructor(
     fun startRecording() {
         val date = parseDate() ?: return
         transcription = TranscriptionUiState.Idle
+        protocol = ProtocolUiState.Idle
+        lastTranscript = null
         RecordingService.start(context, date, art.trim(), thema.trim())
     }
 
@@ -87,6 +106,7 @@ class RecordViewModel @Inject constructor(
                         transcription = TranscriptionUiState.Running(progress)
                     }
                 }
+                lastTranscript = transcript
                 val markdown = TranscriptMarkdownFormatter.format(
                     TranscriptMeta(
                         date = date,
@@ -102,6 +122,43 @@ class RecordViewModel @Inject constructor(
                 transcription = TranscriptionUiState.Done(mdFile.name)
             } catch (e: Exception) {
                 transcription = TranscriptionUiState.Error(e.message ?: "Transkription fehlgeschlagen")
+            }
+        }
+    }
+
+    /** Analysiert das Transkript (Claude API) und erzeugt das DOCX-Protokoll. */
+    fun createProtocolForLast() {
+        val wavName = recordingState.value.lastSavedFileName ?: return
+        val transcript = lastTranscript ?: return
+        val date = parseDate() ?: LocalDate.now()
+        viewModelScope.launch {
+            protocol = ProtocolUiState.Running
+            try {
+                val analysis = withContext(Dispatchers.IO) {
+                    analysisEngine.analyze(
+                        transcript.fullText,
+                        AnalysisContext(
+                            art = art.trim(),
+                            thema = thema.trim(),
+                            date = date.toString(),
+                            language = settings.language,
+                        ),
+                    )
+                }
+                val wav = storage.fileByName(wavName)
+                val meta = ProtocolMeta(
+                    date = date,
+                    art = art.trim(),
+                    thema = thema.trim(),
+                    audioFileName = wavName,
+                    transcriptFileName = storage.transcriptFileFor(wav).name,
+                    durationMs = recordingState.value.elapsedMs,
+                )
+                val docx = MeetingMinutesComposer.compose(meta, analysis)
+                val file = withContext(Dispatchers.IO) { storage.writeProtocol(wav, docx) }
+                protocol = ProtocolUiState.Done(file.name)
+            } catch (e: Exception) {
+                protocol = ProtocolUiState.Error(e.message ?: "Protokoll-Erstellung fehlgeschlagen")
             }
         }
     }
