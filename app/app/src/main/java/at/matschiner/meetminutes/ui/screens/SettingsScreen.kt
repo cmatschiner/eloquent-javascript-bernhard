@@ -2,7 +2,7 @@ package at.matschiner.meetminutes.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -73,7 +73,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 
         Text("Transkription (On-Device Whisper)", style = MaterialTheme.typography.titleMedium)
         Text("Modell", style = MaterialTheme.typography.bodyMedium)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             viewModel.whisperModels.forEach { model ->
                 FilterChip(
                     selected = viewModel.whisperModel == model,
