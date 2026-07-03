@@ -43,4 +43,12 @@ class MeetingStorage @Inject constructor(
     /** Schreibt das Markdown-Transkript und gibt die Datei zurück. */
     fun writeTranscript(wavFile: File, markdown: String): File =
         transcriptFileFor(wavFile).apply { writeText(markdown) }
+
+    /** Protokoll-Datei (.docx) mit identischem Basisnamen wie die WAV-Datei. */
+    fun protocolFileFor(wavFile: File): File =
+        File(recordingsDir, MeetingFileNamer.withExtension(wavFile.name, "docx"))
+
+    /** Schreibt das DOCX-Protokoll und gibt die Datei zurück. */
+    fun writeProtocol(wavFile: File, bytes: ByteArray): File =
+        protocolFileFor(wavFile).apply { writeBytes(bytes) }
 }
