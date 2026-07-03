@@ -43,16 +43,20 @@ class WhisperEngine @Inject constructor(
         val pcm = WavPcmReader.readMonoFloat(wavFile)
         onProgress(0.7f)
 
-        // 3) Native Inferenz (0.7 .. 1.0)
+        // 3) Native Inferenz (0.7 .. 1.0) – echter Whisper-Fortschritt 0..100
         val ctx = WhisperNative.nativeInit(modelFile.absolutePath)
         check(ctx != 0L) { "Modell konnte nicht geladen werden: ${modelFile.name}" }
         try {
+            WhisperNative.setProgressHandler { percent ->
+                onProgress((0.7f + 0.3f * (percent / 100f)).coerceIn(0.7f, 1f))
+            }
             val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 8)
             val lines = WhisperNative.nativeTranscribe(ctx, pcm, language, threads)
                 ?: error("Transkription fehlgeschlagen.")
             onProgress(1f)
             Transcript(language, lines.mapNotNull(::parseSegment))
         } finally {
+            WhisperNative.setProgressHandler(null)
             WhisperNative.nativeFree(ctx)
         }
     }

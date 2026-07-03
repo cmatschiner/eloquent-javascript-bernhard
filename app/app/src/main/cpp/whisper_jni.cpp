@@ -7,6 +7,22 @@
 #define LOG_TAG "MeetMinutesWhisper"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+// Kontext für den Whisper-Fortschritts-Callback → ruft WhisperNative.reportProgress(int).
+struct ProgressContext {
+    JNIEnv *env;
+    jobject obj;
+    jmethodID method;
+};
+
+static void progress_callback(struct whisper_context * /*ctx*/,
+                              struct whisper_state * /*state*/,
+                              int progress, void *user_data) {
+    auto *pc = reinterpret_cast<ProgressContext *>(user_data);
+    if (pc != nullptr && pc->method != nullptr) {
+        pc->env->CallVoidMethod(pc->obj, pc->method, static_cast<jint>(progress));
+    }
+}
+
 extern "C" {
 
 // Lädt das ggml-Modell und liefert einen Kontext-Zeiger (0 = Fehler).
@@ -25,10 +41,11 @@ Java_at_matschiner_meetminutes_transcription_WhisperNative_nativeInit(
 }
 
 // Transkribiert PCM-Float-Audio (16 kHz, Mono, [-1,1]).
+// Meldet Fortschritt via WhisperNative.reportProgress(int).
 // Rückgabe: String[] mit Zeilen "startMs|endMs|text" (null bei Fehler).
 JNIEXPORT jobjectArray JNICALL
 Java_at_matschiner_meetminutes_transcription_WhisperNative_nativeTranscribe(
-        JNIEnv *env, jobject /* this */, jlong ctxPtr, jfloatArray audio,
+        JNIEnv *env, jobject thiz, jlong ctxPtr, jfloatArray audio,
         jstring language, jint threads) {
     auto *ctx = reinterpret_cast<whisper_context *>(ctxPtr);
     if (ctx == nullptr) return nullptr;
@@ -47,6 +64,13 @@ Java_at_matschiner_meetminutes_transcription_WhisperNative_nativeTranscribe(
     params.print_timestamps = false;
     params.translate = false;
     params.no_context = true;
+
+    // Fortschritts-Callback nach Java durchreichen (gleicher Thread → env nutzbar).
+    jclass cls = env->GetObjectClass(thiz);
+    jmethodID reportMethod = env->GetMethodID(cls, "reportProgress", "(I)V");
+    ProgressContext pc{env, thiz, reportMethod};
+    params.progress_callback = progress_callback;
+    params.progress_callback_user_data = &pc;
 
     int rc = whisper_full(ctx, params, pcm.data(), n);
     env->ReleaseStringUTFChars(language, lang);

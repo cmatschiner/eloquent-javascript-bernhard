@@ -199,25 +199,20 @@ fun RecordScreen(viewModel: RecordViewModel = hiltViewModel()) {
                                 ) { Text("Transkribieren") }
                             }
                             is TranscriptionUiState.Running -> {
-                                // < 0.6: Modell-Download (bestimmt); danach: Inferenz (unbestimmt,
-                                // whisper liefert keinen Zwischenfortschritt).
-                                if (t.progress < 0.6f) {
-                                    Text(
-                                        "Modell wird geladen … ${(t.progress * 100).toInt()} %",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                    LinearProgressIndicator(
-                                        progress = { t.progress },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
+                                // < 0.6: Modell-Download; danach: echte Whisper-Inferenz (70..100 %).
+                                val label = if (t.progress < 0.6f) {
+                                    "Modell wird geladen"
                                 } else {
-                                    Text(
-                                        "Transkribiere Audio … das kann je nach Länge und " +
-                                            "Modell etwas dauern.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    "Transkribiere"
                                 }
+                                Text(
+                                    "$label … ${(t.progress * 100).toInt()} %",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                LinearProgressIndicator(
+                                    progress = { t.progress },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
                             }
                             is TranscriptionUiState.Done -> {
                                 Text(
