@@ -16,117 +16,200 @@ data class ProtocolMeta(
 )
 
 /**
- * Erzeugt das Besprechungsprotokoll (Minutes of Meeting, Ergebnisprotokoll-Stil)
- * als DOCX gemäß docs/04_MoM-Vorlage.md.
+ * Erzeugt das Besprechungsprotokoll als DOCX in der verbindlichen
+ * 13-Abschnitte-Vorlage (siehe docs/04_MoM-Vorlage.md).
+ *
+ * Abschnitte, die aus einer einzelnen Aufnahme nicht ableitbar sind, bleiben als
+ * leeres Gerüst stehen und können in der App ergänzt werden.
  */
 object MeetingMinutesComposer {
 
     private val DATE = DateTimeFormatter.ISO_LOCAL_DATE
-    private const val DASH = "—"
+    private const val EMPTY = "—"
 
     fun compose(meta: ProtocolMeta, analysis: MeetingAnalysis): ByteArray {
         val doc = DocxBuilder()
 
-        doc.heading("BESPRECHUNGSPROTOKOLL", level = 1)
-        doc.heading("${meta.art} – ${meta.thema}", level = 2)
+        doc.heading("MEETINGPROTOKOLL", level = 1)
+        doc.heading("${meta.art} – ${meta.thema}  ·  ${meta.date.format(DATE)}", level = 2)
 
-        // 1. Eckdaten
-        doc.heading("1. Eckdaten", level = 2)
-        doc.table(
-            headers = listOf("Feld", "Wert"),
-            rows = listOf(
-                listOf("Datum", meta.date.format(DATE)),
-                listOf("Art", meta.art),
-                listOf("Thema", meta.thema),
-                listOf("Dauer", TimeFormat.mmss(meta.durationMs)),
-                listOf("Protokollführung", "MeetMinutes (KI-generiert)"),
-                listOf("Audiodatei", meta.audioFileName),
-            ),
-        )
+        section1Details(doc, meta, analysis)
+        section2Agenda(doc, analysis)
+        section3Previous(doc, analysis)
+        section4Discussion(doc, analysis)
+        section5ActionItems(doc, analysis)
+        section6Decisions(doc, analysis)
+        section7Risks(doc, analysis)
+        section8NextSteps(doc, analysis)
+        section9OtherTopics(doc, analysis)
+        section10Milestones(doc, analysis)
+        section11Conclusion(doc, meta, analysis)
+        section12Attachments(doc, meta)
+        section13Signatures(doc, analysis)
 
-        // 2. Teilnehmer
-        doc.heading("2. Teilnehmer", level = 2)
-        if (analysis.participants.isEmpty()) {
-            doc.paragraph(DASH)
-        } else {
-            doc.table(
-                headers = listOf("Name", "Anwesend"),
-                rows = analysis.participants.map { listOf(it, "ja") },
-            )
-        }
-
-        // 3. Agenda / TOP
-        doc.heading("3. Agenda / Tagesordnungspunkte", level = 2)
-        if (analysis.agenda.isEmpty()) doc.paragraph(DASH)
-        else analysis.agenda.forEachIndexed { i, top -> doc.bullet("TOP ${i + 1}: $top") }
-
-        // 4. Zusammenfassung
-        doc.heading("4. Zusammenfassung", level = 2)
-        doc.paragraph(analysis.summary.ifBlank { DASH })
-
-        // 5. Besprechungsinhalt je TOP
-        doc.heading("5. Besprechungsinhalt", level = 2)
-        if (analysis.topics.isEmpty()) {
-            doc.paragraph(DASH)
-        } else {
-            analysis.topics.forEach { topic ->
-                doc.heading(topic.title, level = 3)
-                topic.discussion?.takeIf { it.isNotBlank() }?.let { doc.labeled("Diskussion", it) }
-                topic.result?.takeIf { it.isNotBlank() }?.let { doc.labeled("Ergebnis", it) }
-            }
-        }
-
-        // 6. Beschlüsse
-        doc.heading("6. Beschlüsse / Entscheidungen", level = 2)
-        if (analysis.decisions.isEmpty()) doc.paragraph(DASH)
-        else analysis.decisions.forEach { doc.bullet(it, bold = true) }
-
-        // 7. Action Items
-        doc.heading("7. Action Items", level = 2)
-        if (analysis.actionItems.isEmpty()) {
-            doc.paragraph(DASH)
-        } else {
-            doc.table(
-                headers = listOf("#", "Aufgabe", "Verantwortlich", "Frist", "Mich betr."),
-                rows = analysis.actionItems.mapIndexed { i, item ->
-                    listOf(
-                        (i + 1).toString(),
-                        item.description,
-                        item.responsible ?: DASH,
-                        item.dueDate ?: DASH,
-                        if (item.concernsMe) "ja" else DASH,
-                    )
-                },
-            )
-        }
-
-        // 8. Follow-up-Termine
-        doc.heading("8. Follow-up-Termine", level = 2)
-        if (analysis.followUps.isEmpty()) {
-            doc.paragraph(DASH)
-        } else {
-            doc.table(
-                headers = listOf("Titel", "Datum/Uhrzeit", "Teilnehmer"),
-                rows = analysis.followUps.map {
-                    listOf(it.title, it.dateTime ?: DASH, it.participants.joinToString(", ").ifBlank { DASH })
-                },
-            )
-        }
-
-        // 9. Offene Punkte
-        doc.heading("9. Offene Punkte", level = 2)
-        if (analysis.openPoints.isEmpty()) doc.paragraph(DASH)
-        else analysis.openPoints.forEach { doc.bullet(it) }
-
-        // 10. Anhang
-        doc.heading("10. Anhang", level = 2)
-        doc.labeled("Transkript", meta.transcriptFileName)
-        doc.labeled("Audio", meta.audioFileName)
         doc.paragraph(
             "Erstellt mit MeetMinutes am ${meta.date.format(DATE)}. " +
                 "KI-generiert – bitte inhaltlich prüfen.",
         )
-
         return doc.build()
+    }
+
+    private fun section1Details(doc: DocxBuilder, meta: ProtocolMeta, a: MeetingAnalysis) {
+        doc.sectionBar("1. MEETINGDETAILS")
+        doc.table(
+            headers = listOf("DATUM", "ORT", "STARTZEIT", "ENDZEIT", "DAUER"),
+            rows = listOf(
+                listOf(
+                    meta.date.format(DATE),
+                    a.details.location ?: EMPTY,
+                    a.details.startTime ?: EMPTY,
+                    a.details.endTime ?: EMPTY,
+                    TimeFormat.mmss(meta.durationMs),
+                ),
+            ),
+        )
+        doc.table(
+            headers = listOf("NAME", "ROLLE", "ANWESEND"),
+            rows = a.participants
+                .map { listOf(it.name, it.role ?: EMPTY, it.present ?: "ja") }
+                .ifEmpty { listOf(listOf(EMPTY, EMPTY, EMPTY)) },
+        )
+    }
+
+    private fun section2Agenda(doc: DocxBuilder, a: MeetingAnalysis) {
+        doc.sectionBar("2. AGENDA")
+        doc.table(
+            headers = listOf("TAGESORDNUNGSPUNKT", "VERANTWORTLICH", "STARTZEIT", "DAUER"),
+            rows = a.agenda
+                .map {
+                    listOf(
+                        it.topic,
+                        it.responsible ?: EMPTY,
+                        it.startTime ?: EMPTY,
+                        it.duration ?: EMPTY,
+                    )
+                }
+                .ifEmpty { listOf(listOf(EMPTY, EMPTY, EMPTY, EMPTY)) },
+        )
+    }
+
+    private fun section3Previous(doc: DocxBuilder, a: MeetingAnalysis) {
+        doc.sectionBar("3. BESPRECHUNG DES VORHERIGEN MEETINGS")
+        doc.labeled("Zusammenfassung", a.previousSummary.ifBlank { EMPTY })
+        doc.table(
+            headers = listOf("AKTIONSPUNKT (VORHERIG)", "VERANTWORTLICH", "STATUS"),
+            rows = a.previousActionItems
+                .map { listOf(it.description, it.responsible ?: EMPTY, it.status ?: EMPTY) }
+                .ifEmpty { listOf(listOf(EMPTY, EMPTY, EMPTY)) },
+        )
+    }
+
+    private fun section4Discussion(doc: DocxBuilder, a: MeetingAnalysis) {
+        doc.sectionBar("4. DISKUSSIONSPUNKTE")
+        doc.table(
+            headers = listOf("TAGESORDNUNGSPUNKT", "ANMERKUNGEN ZUR DISKUSSION / ENTSCHEIDUNG"),
+            rows = a.discussionPoints
+                .map { listOf(it.title, it.notes ?: EMPTY) }
+                .ifEmpty { listOf(listOf(EMPTY, EMPTY)) },
+        )
+    }
+
+    private fun section5ActionItems(doc: DocxBuilder, a: MeetingAnalysis) {
+        doc.sectionBar("5. AKTIONSPUNKTE")
+        doc.table(
+            headers = listOf("AKTIONSPUNKT", "INHABER", "FÄLLIGKEIT", "MICH BETR."),
+            rows = a.actionItems
+                .map {
+                    listOf(
+                        it.description,
+                        it.responsible ?: EMPTY,
+                        it.dueDate ?: EMPTY,
+                        if (it.concernsMe) "ja" else EMPTY,
+                    )
+                }
+                .ifEmpty { listOf(listOf(EMPTY, EMPTY, EMPTY, EMPTY)) },
+        )
+    }
+
+    private fun section6Decisions(doc: DocxBuilder, a: MeetingAnalysis) {
+        doc.sectionBar("6. GETROFFENE ENTSCHEIDUNGEN")
+        doc.table(
+            headers = listOf("ENTSCHEIDUNG (INKL. BEGRÜNDUNG)"),
+            rows = a.decisions.map { listOf(it) }.ifEmpty { listOf(listOf(EMPTY)) },
+        )
+    }
+
+    private fun section7Risks(doc: DocxBuilder, a: MeetingAnalysis) {
+        doc.sectionBar("7. RISIKEN UND PROBLEME")
+        doc.table(
+            headers = listOf("RISIKO ODER PROBLEM", "MILDERUNGSPLAN"),
+            rows = a.risks
+                .map { listOf(it.risk, it.mitigation ?: EMPTY) }
+                .ifEmpty { listOf(listOf(EMPTY, EMPTY)) },
+        )
+    }
+
+    private fun section8NextSteps(doc: DocxBuilder, a: MeetingAnalysis) {
+        doc.sectionBar("8. NÄCHSTE SCHRITTE")
+        doc.table(
+            headers = listOf("NÄCHSTE SCHRITTE"),
+            rows = a.nextSteps.map { listOf(it) }.ifEmpty { listOf(listOf(EMPTY)) },
+        )
+    }
+
+    private fun section9OtherTopics(doc: DocxBuilder, a: MeetingAnalysis) {
+        doc.sectionBar("9. SONSTIGE THEMEN")
+        doc.table(
+            headers = listOf("WEITERES ELEMENT", "BESCHREIBUNG", "ERGEBNIS"),
+            rows = a.otherTopics
+                .map { listOf(it.item, it.description ?: EMPTY, it.result ?: EMPTY) }
+                .ifEmpty { listOf(listOf(EMPTY, EMPTY, EMPTY)) },
+        )
+    }
+
+    private fun section10Milestones(doc: DocxBuilder, a: MeetingAnalysis) {
+        doc.sectionBar("10. BEVORSTEHENDE MEILENSTEINE")
+        doc.table(
+            headers = listOf("MEILENSTEIN", "TERMIN"),
+            rows = a.milestones
+                .map { listOf(it.name, it.date ?: EMPTY) }
+                .ifEmpty { listOf(listOf(EMPTY, EMPTY)) },
+        )
+    }
+
+    private fun section11Conclusion(doc: DocxBuilder, meta: ProtocolMeta, a: MeetingAnalysis) {
+        doc.sectionBar("11. FAZIT DES MEETINGS")
+        doc.labeled("Zusammenfassung", a.summary.ifBlank { EMPTY })
+        doc.table(
+            headers = listOf("DATUM NÄCHSTES MEETING", "UHRZEIT", "ORT"),
+            rows = listOf(
+                listOf(
+                    a.nextMeeting.date ?: EMPTY,
+                    a.nextMeeting.time ?: EMPTY,
+                    a.nextMeeting.location ?: EMPTY,
+                ),
+            ),
+        )
+    }
+
+    private fun section12Attachments(doc: DocxBuilder, meta: ProtocolMeta) {
+        doc.sectionBar("12. ANLAGEN ODER HILFSMATERIALIEN")
+        doc.table(
+            headers = listOf("MATERIAL / LINK"),
+            rows = listOf(
+                listOf("Transkript: ${meta.transcriptFileName}"),
+                listOf("Audio: ${meta.audioFileName}"),
+            ),
+        )
+    }
+
+    private fun section13Signatures(doc: DocxBuilder, a: MeetingAnalysis) {
+        doc.sectionBar("13. GENEHMIGUNG UND UNTERSCHRIFTEN")
+        doc.table(
+            headers = listOf("NAME DES TEILNEHMERS", "UNTERSCHRIFT"),
+            rows = a.participants
+                .map { listOf(it.name, " ") }
+                .ifEmpty { listOf(listOf(EMPTY, " ")) },
+        )
     }
 }

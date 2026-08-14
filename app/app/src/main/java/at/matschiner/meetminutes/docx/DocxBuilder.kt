@@ -56,36 +56,66 @@ class DocxBuilder {
         return this
     }
 
-    /** Einfache Tabelle mit Kopfzeile und Rändern. */
+    /**
+     * Abschnittsbalken (volle Breite, farbig hinterlegt) – Kopf eines
+     * nummerierten Abschnitts der MoM-Vorlage.
+     */
+    fun sectionBar(text: String): DocxBuilder {
+        body.append("<w:tbl>")
+        body.append(tableProps())
+        body.append("<w:tr><w:tc><w:tcPr><w:tcW w:w=\"0\" w:type=\"auto\"/>")
+        body.append(shading(ACCENT))
+        body.append("</w:tcPr><w:p>")
+        body.append(run(text, bold = true, size = 22, color = WHITE))
+        body.append("</w:p></w:tc></w:tr>")
+        body.append("</w:tbl>")
+        return this
+    }
+
+    /** Einfache Tabelle mit hinterlegter Kopfzeile und Rändern. */
     fun table(headers: List<String>, rows: List<List<String>>): DocxBuilder {
         body.append("<w:tbl>")
-        body.append("<w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/>")
-        body.append("<w:tblBorders>")
-        for (edge in listOf("top", "left", "bottom", "right", "insideH", "insideV")) {
-            body.append("<w:$edge w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"999999\"/>")
-        }
-        body.append("</w:tblBorders></w:tblPr>")
-
-        body.append(tableRow(headers, bold = true))
-        for (row in rows) body.append(tableRow(row, bold = false))
+        body.append(tableProps())
+        body.append(tableRow(headers, bold = true, fill = SUBHEADER))
+        for (row in rows) body.append(tableRow(row, bold = false, fill = null))
         body.append("</w:tbl>")
         body.append("<w:p/>")
         return this
     }
 
-    private fun tableRow(cells: List<String>, bold: Boolean): String = buildString {
+    private fun tableProps(): String = buildString {
+        append("<w:tblPr><w:tblW w:w=\"5000\" w:type=\"pct\"/>")
+        append("<w:tblBorders>")
+        for (edge in listOf("top", "left", "bottom", "right", "insideH", "insideV")) {
+            append("<w:$edge w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"999999\"/>")
+        }
+        append("</w:tblBorders></w:tblPr>")
+    }
+
+    private fun shading(fill: String): String =
+        "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"$fill\"/>"
+
+    private fun tableRow(cells: List<String>, bold: Boolean, fill: String?): String = buildString {
         append("<w:tr>")
         for (cell in cells) {
-            append("<w:tc><w:tcPr><w:tcW w:w=\"0\" w:type=\"auto\"/></w:tcPr>")
-            append("<w:p>").append(run(cell, bold = bold, size = 20)).append("</w:p>")
+            append("<w:tc><w:tcPr><w:tcW w:w=\"0\" w:type=\"auto\"/>")
+            if (fill != null) append(shading(fill))
+            append("</w:tcPr>")
+            append("<w:p>").append(run(cell, bold = bold, size = 18)).append("</w:p>")
             append("</w:tc>")
         }
         append("</w:tr>")
     }
 
-    private fun run(text: String, bold: Boolean, size: Int): String = buildString {
+    private fun run(
+        text: String,
+        bold: Boolean,
+        size: Int,
+        color: String? = null,
+    ): String = buildString {
         append("<w:r><w:rPr>")
         if (bold) append("<w:b/>")
+        if (color != null) append("<w:color w:val=\"$color\"/>")
         append("<w:sz w:val=\"$size\"/><w:szCs w:val=\"$size\"/>")
         append("</w:rPr>")
         append("<w:t xml:space=\"preserve\">").append(escape(text)).append("</w:t></w:r>")
@@ -131,6 +161,11 @@ class DocxBuilder {
     }
 
     private companion object {
+        /** Akzentfarbe der Abschnittsbalken und Kopfzeilen. */
+        const val ACCENT = "2E5AAC"
+        const val SUBHEADER = "DCE3F2"
+        const val WHITE = "FFFFFF"
+
         const val CONTENT_TYPES =
             "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
                 "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">" +
