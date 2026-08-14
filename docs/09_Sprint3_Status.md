@@ -47,5 +47,21 @@ Umgesetzt in zwei Schritten: 3.1 DOCX-Pipeline (abhängigkeitsfrei), 3.2 Claude-
   Meetings kann später ergänzt werden.
 - In-App-**Bearbeiten** des Protokolls (nur Protokoll) kommt in Sprint 4 (Kalenderübersicht).
 
+## Nachtrag: Umstellung auf die 13-Abschnitte-Vorlage
+Der Auftraggeber hat die Vorlage „Projektmanagement-Meetingprotokoll" (Smartsheet-Layout,
+13 Abschnitte) als verbindlich vorgegeben. Umgesetzt in `5d4a2b9` (CI Run #13 grün):
+
+- `MeetingAnalysis` um alle Vorlagen-Felder erweitert (Meetingdetails, Teilnehmer mit Rolle,
+  Agenda, vorheriges Meeting, Diskussionspunkte, Risiken, nächste Schritte, sonstige Themen,
+  Meilensteine, Fazit, nächstes Meeting).
+- `AnalysisPrompt`/`AnalysisResponseParser` auf die neue Struktur umgestellt
+  (Regel „nichts erfinden" – nicht Genanntes bleibt leer).
+- `DocxBuilder` um farbige Abschnittsbalken und hinterlegte Kopfzeilen ergänzt.
+- `MeetingMinutesComposer` erzeugt alle 13 Abschnitte; nicht ableitbare bleiben als
+  leeres Gerüst stehen (in der App ergänzbar).
+- Tests: 13 Abschnittsüberschriften, Datenübernahme, leere Analyse, Parser-Mapping.
+
+Zwischenfehler (behoben): Kotlin-Namenskollision `JSONObject.opt` (Member verdeckt Extension).
+
 ## Nächster Schritt
 Nach Abnahme: **Sprint 4 (Kalenderübersicht: anzeigen, aufrufen, Protokoll editieren, löschen)**.
